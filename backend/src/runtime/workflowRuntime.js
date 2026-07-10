@@ -21,6 +21,7 @@ const plannerInvoker = require('./plannerInvoker');
 const plannerValidator = require('./plannerValidator');
 const stateMachine = require('./workflowStateMachine');
 const dispatcher = require('./workflowDispatcher');
+const toolExecutor = require('../executor/toolExecutor');
 
 class WorkflowRuntime {
   constructor() {
@@ -141,7 +142,19 @@ class WorkflowRuntime {
         nextState: executionPlan.nextState
       });
 
-      // Step 6: Build workflow result
+      // Step 6: Execute tools (NEW - Phase 3)
+      this.logEvent('ToolExecutionStarted', runtimeId);
+      
+      const executionResult = await toolExecutor.execute(executionPlan);
+
+      this.logEvent('ToolExecutionCompleted', runtimeId, {
+        success: executionResult.success,
+        resultsCount: executionResult.results.length,
+        errorsCount: executionResult.errors.length,
+        duration: executionResult.executionTime
+      });
+
+      // Step 7: Build workflow result
       const duration = Date.now() - startTime;
 
       const workflowResult = {
@@ -150,6 +163,7 @@ class WorkflowRuntime {
         nextState: executionPlan.nextState,
         plannerResponse: plannerResponse,
         executionPlan: executionPlan,
+        executionResult: executionResult,
         metadata: {
           runtimeId,
           duration,
