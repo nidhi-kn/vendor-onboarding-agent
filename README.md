@@ -142,10 +142,12 @@ This is a complete, production-ready system featuring intelligent conversation m
 vendor-onboarding-agent/
 ├── backend/
 │   ├── src/
-│   │   ├── agent/              # Planner agent
+│   │   ├── agent/              # AI Planner agent
 │   │   │   ├── planner.js
 │   │   │   ├── plannerPrompt.js
 │   │   │   ├── plannerSchema.js
+│   │   │   ├── plannerTypes.js
+│   │   │   ├── constants.js
 │   │   │   └── workflowEngine.js
 │   │   ├── connectors/         # Transport adapters
 │   │   │   ├── connector.interface.js
@@ -158,12 +160,19 @@ vendor-onboarding-agent/
 │   │   │   ├── connector.controller.js
 │   │   │   ├── vendor.controller.js
 │   │   │   ├── approval.controller.js
-│   │   │   └── timeline.controller.js
+│   │   │   ├── timeline.controller.js
+│   │   │   └── log.controller.js
 │   │   ├── services/           # Business logic orchestration
 │   │   │   ├── workflow.service.js
 │   │   │   ├── connector.service.js
 │   │   │   └── groqService.js
 │   │   ├── routes/             # Express routes
+│   │   │   ├── workflow.routes.js
+│   │   │   ├── connector.routes.js
+│   │   │   ├── vendor.routes.js
+│   │   │   ├── approval.routes.js
+│   │   │   ├── timeline.routes.js
+│   │   │   └── log.routes.js
 │   │   ├── repositories/       # Database access
 │   │   │   ├── vendorRepository.js
 │   │   │   ├── workflowRepository.js
@@ -175,12 +184,29 @@ vendor-onboarding-agent/
 │   │   ├── runtime/            # Workflow orchestration
 │   │   │   ├── workflowRuntime.js
 │   │   │   ├── workflowStateMachine.js
-│   │   │   └── workflowDispatcher.js
+│   │   │   ├── workflowDispatcher.js
+│   │   │   ├── workflowContextBuilder.js
+│   │   │   ├── plannerInvoker.js
+│   │   │   └── plannerValidator.js
 │   │   ├── tools/              # Business tools
+│   │   │   ├── vendorTool.js
+│   │   │   ├── workflowTool.js
+│   │   │   ├── documentTool.js
+│   │   │   ├── conversationTool.js
+│   │   │   ├── approvalTool.js
+│   │   │   ├── loggerTool.js
+│   │   │   └── notificationTool.js
 │   │   ├── executor/           # Tool execution
+│   │   │   ├── toolExecutor.js
+│   │   │   └── initializeTools.js
 │   │   ├── registry/           # Tool registry
+│   │   │   └── toolRegistry.js
 │   │   ├── middleware/         # Express middleware
+│   │   │   ├── requestLogger.js
+│   │   │   ├── errorHandler.js
+│   │   │   └── notFound.js
 │   │   ├── config/             # Configuration
+│   │   │   └── db.js
 │   │   ├── app.js              # Express app
 │   │   └── server.js           # Server entry point
 │   ├── prisma/
@@ -222,9 +248,14 @@ vendor-onboarding-agent/
 │   │   └── index.ts            # Type definitions
 │   ├── public/                 # Static assets
 │   ├── .env.local.example      # Environment variables template
+│   ├── .env.local              # Environment variables (local)
+│   ├── AGENTS.md               # Frontend development guide
+│   ├── README.md               # Frontend documentation
 │   ├── next.config.ts          # Next.js configuration
-│   ├── tailwind.config.ts      # TailwindCSS configuration
+│   ├── postcss.config.mjs      # PostCSS configuration
+│   ├── eslint.config.mjs       # ESLint configuration
 │   ├── tsconfig.json           # TypeScript configuration
+│   ├── next-env.d.ts           # Next.js type definitions
 │   └── package.json
 ├── ARCHITECTURE.md             # System architecture with diagrams
 ├── EVALUATION_GUIDE.md         # Quick setup guide for evaluators
