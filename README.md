@@ -259,12 +259,6 @@ vendor-onboarding-agent/
 │   └── package.json
 ├── ARCHITECTURE.md             # System architecture with diagrams
 ├── EVALUATION_GUIDE.md         # Quick setup guide for evaluators
-├── API_LAYER.md                # API documentation
-├── CONNECTOR_LAYER.md          # Connector documentation
-├── PERSISTENCE_LAYER.md        # Database documentation
-├── DEPLOYMENT_GUIDE.md         # Deployment guide
-├── PHASE_5_SUMMARY.md          # API phase summary
-├── PHASE_6_SUMMARY.md          # Connector phase summary
 └── README.md                   # This file
 ```
 
