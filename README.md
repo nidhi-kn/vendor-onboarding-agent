@@ -42,7 +42,6 @@ This is a complete, production-ready system featuring intelligent conversation m
 - **REST API** - Complete HTTP API for all operations
 - **Microservices Ready** - Loosely coupled, easily scalable components  
 - **Comprehensive Testing** - Unit, integration, and end-to-end test suites
-- **Docker Support** - Containerized deployment ready  
 
 ---
 
@@ -81,9 +80,9 @@ This is a complete, production-ready system featuring intelligent conversation m
                       │
 ┌─────────────────────▼───────────────────────────────────────────┐
 │                    REST API LAYER                              │
-│            (Express.js + TypeScript)                          │
+│                    (Express.js)                              │
 │  • Route Handlers           • Request Validation              │
-│  • Authentication          • Error Handling                   │
+│  • Error Handling                                            │
 │  • CORS & Security         • API Documentation                │
 └─────────────────────┬───────────────────────────────────────────┘
                       │
@@ -445,7 +444,7 @@ Connector → API → Runtime → Planner → Tools → Database → Response
 # Start frontend (after backend is running)
 cd frontend
 npm run dev
-# Opens: http://localhost:3000
+# Opens: http://localhost:3001
 ```
 
 #### **Dashboard Features:**
@@ -460,7 +459,6 @@ npm run dev
 - **Vendor List**: Complete vendor directory with search and filtering
 - **Status Tracking**: Workflow state for each vendor
 - **Quick Actions**: Direct access to vendor workflows
-- **Data Export**: Vendor information export capabilities
 
 **🔄 Workflow Details** (`/workflow/[id]`)
 - **Vendor Information**: Complete vendor profile and contact details
@@ -473,7 +471,6 @@ npm run dev
 - **Pending Approvals**: Queue of workflows awaiting approval
 - **Approval Actions**: One-click approve/reject functionality
 - **Approval History**: Complete audit trail of decisions
-- **Bulk Operations**: Handle multiple approvals efficiently
 
 ### 🤖 **Telegram Bot Interface**
 
@@ -632,8 +629,6 @@ Content-Type: application/json
   "approvedBy": "admin@company.com"
 }
 ```
-
-See [API_LAYER.md](./API_LAYER.md) for complete API documentation.
 
 ---
 
@@ -990,7 +985,6 @@ const messageSchema = z.object({
 - [ ] Advanced analytics
 - [ ] Workflow templates
 - [ ] Custom approval flows
-- [ ] Bulk operations
 
 ---
 
@@ -1040,9 +1034,9 @@ MIT
 ## 📞 Support
 
 **Documentation**:
-- [API Documentation](./API_LAYER.md)
-- [Connector Documentation](./CONNECTOR_LAYER.md)
-- [Deployment Guide](./DEPLOYMENT_GUIDE.md)
+- [Architecture Documentation](./ARCHITECTURE.md)
+- [Evaluation Guide](./EVALUATION_GUIDE.md)
+- [Persistence Layer Documentation](./backend/PERSISTENCE_LAYER.md)
 
 **Testing**:
 ```bash
