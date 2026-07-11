@@ -4,11 +4,14 @@
  * Builds normalized PlannerRequest from workflow event.
  * Prepares all context required by the Planner.
  * 
- * Currently returns mocked data.
- * Designed with interfaces that repositories can replace later.
+ * Uses real repositories to read from database.
  */
 
 const { WORKFLOW_STATES, MESSAGE_TYPES } = require('../agent/constants');
+const workflowRepository = require('../repositories/workflowRepository');
+const vendorRepository = require('../repositories/vendorRepository');
+const messageRepository = require('../repositories/messageRepository');
+const documentRepository = require('../repositories/documentRepository');
 
 class WorkflowContextBuilder {
   /**
@@ -18,20 +21,53 @@ class WorkflowContextBuilder {
    * @returns {Promise<Object>} Vendor context
    */
   async loadVendor(vendorId) {
-    // TODO: Replace with repository call in Phase 4
-    // return await vendorRepository.findById(vendorId);
+    // If no vendorId, return empty vendor shape
+    if (!vendorId) {
+      return {
+        vendorId: null,
+        companyName: null,
+        contactPerson: null,
+        email: null,
+        phone: null,
+        gstNumber: null,
+        panNumber: null,
+        bankAccountNumber: null,
+        ifscCode: null,
+        metadata: {}
+      };
+    }
+
+    // Load from repository
+    const vendor = await vendorRepository.findById(vendorId);
     
+    if (!vendor) {
+      // Return empty shape if not found
+      return {
+        vendorId: vendorId,
+        companyName: null,
+        contactPerson: null,
+        email: null,
+        phone: null,
+        gstNumber: null,
+        panNumber: null,
+        bankAccountNumber: null,
+        ifscCode: null,
+        metadata: {}
+      };
+    }
+
+    // Map repository fields to expected shape
     return {
-      vendorId: vendorId || null,
-      companyName: null,
-      contactPerson: null,
-      email: null,
-      phone: null,
-      gstNumber: null,
-      panNumber: null,
-      bankAccountNumber: null,
-      ifscCode: null,
-      metadata: {}
+      vendorId: vendor.id,
+      companyName: vendor.companyName,
+      contactPerson: vendor.contactPerson,
+      email: vendor.email,
+      phone: vendor.phone,
+      gstNumber: vendor.gstNumber,
+      panNumber: vendor.panNumber,
+      bankAccountNumber: vendor.bankAccount ? vendor.bankAccount.accountNumber : null,
+      ifscCode: vendor.bankAccount ? vendor.bankAccount.ifscCode : null,
+      metadata: vendor.metadata || {}
     };
   }
 
@@ -42,18 +78,31 @@ class WorkflowContextBuilder {
    * @returns {Promise<Object>} Workflow context
    */
   async loadWorkflow(workflowId) {
-    // TODO: Replace with repository call in Phase 4
-    // return await workflowRepository.findById(workflowId);
+    // Try to find existing workflow
+    let workflow = await workflowRepository.findById(workflowId);
     
+    if (!workflow) {
+      // Create workflow if it doesn't exist (first message for this workflow)
+      workflow = await workflowRepository.create({
+        workflowId: workflowId,
+        currentState: WORKFLOW_STATES.START,
+        previousState: null,
+        stateHistory: [WORKFLOW_STATES.START],
+        metadata: {}
+      });
+    }
+
+    // Return expected shape
     return {
-      workflowId: workflowId,
-      currentState: WORKFLOW_STATES.START,
-      previousState: null,
-      stateHistory: [WORKFLOW_STATES.START],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      metadata: {},
-      assignedTo: null
+      workflowId: workflow.id,
+      currentState: workflow.currentState,
+      previousState: workflow.previousState,
+      stateHistory: workflow.stateHistory, // Already parsed by repository
+      createdAt: workflow.createdAt,
+      updatedAt: workflow.updatedAt,
+      metadata: workflow.metadata || {},
+      assignedTo: workflow.assignedTo || null,
+      vendorId: workflow.vendorId
     };
   }
 
@@ -65,10 +114,16 @@ class WorkflowContextBuilder {
    * @returns {Promise<Array>} Conversation messages
    */
   async loadConversation(workflowId, limit = 10) {
-    // TODO: Replace with repository call in Phase 4
-    // return await conversationRepository.findByWorkflowId(workflowId, limit);
+    const messages = await messageRepository.getRecent(workflowId, limit);
     
-    return [];
+    // Map to planner-expected format (reverse to chronological order)
+    return messages.reverse().map(msg => ({
+      messageType: msg.messageType || MESSAGE_TYPES.TEXT,
+      content: msg.content || '',
+      sender: msg.sender || 'unknown',
+      timestamp: msg.createdAt,
+      metadata: msg.metadata || {}
+    }));
   }
 
   /**
@@ -78,10 +133,18 @@ class WorkflowContextBuilder {
    * @returns {Promise<Array>} Documents
    */
   async loadDocuments(workflowId) {
-    // TODO: Replace with repository call in Phase 4
-    // return await documentRepository.findByWorkflowId(workflowId);
+    const documents = await documentRepository.listByWorkflowId(workflowId);
     
-    return [];
+    // Map to planner-expected format
+    return documents.map(doc => ({
+      documentType: doc.documentType,
+      fileName: doc.fileName,
+      fileUrl: doc.fileUrl,
+      status: doc.status || 'pending',
+      uploadedAt: doc.uploadedAt || doc.createdAt,
+      verifiedAt: doc.verifiedAt,
+      metadata: doc.metadata || {}
+    }));
   }
 
   /**
@@ -95,14 +158,15 @@ class WorkflowContextBuilder {
   async buildPlannerInput(workflowEvent) {
     const { workflowId, incomingMessage } = workflowEvent;
 
-    // Load all context in parallel
-    const [vendorContext, workflowContext, conversationHistory, documents] = 
-      await Promise.all([
-        this.loadVendor(workflowContext?.vendorId || workflowId),
-        this.loadWorkflow(workflowId),
-        this.loadConversation(workflowId),
-        this.loadDocuments(workflowId)
-      ]);
+    // Load workflow first (fixes the sequencing bug and creates workflow if needed)
+    const workflowContext = await this.loadWorkflow(workflowId);
+
+    // Load vendor, conversation, and documents in parallel
+    const [vendorContext, conversationHistory, documents] = await Promise.all([
+      this.loadVendor(workflowContext.vendorId),
+      this.loadConversation(workflowId),
+      this.loadDocuments(workflowId)
+    ]);
 
     // Normalize incoming message
     const normalizedMessage = this.normalizeMessage(incomingMessage);

@@ -17,12 +17,12 @@ require('dotenv').config();
 class GroqService {
   constructor() {
     this.client = null;
-    this.model = 'llama-3.3-70b-versatile';
+    this.model = process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
     this.isInitialized = false;
     
     // Configuration
     this.config = {
-      maxRetries: 3,
+      maxRetries: 1, // Reduced from 3 - fail fast, let plannerInvoker handle retries
       retryDelay: 1000, // Initial delay in ms
       timeout: 30000, // 30 seconds
       defaultTemperature: 0.1,

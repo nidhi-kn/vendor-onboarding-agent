@@ -91,10 +91,34 @@ class VendorTool {
    * Update vendor information
    */
   async updateVendor(args) {
-    const { vendorId, vendorData } = args;
+    const { vendorId } = args;
 
     if (!vendorId) {
       throw new Error('vendorId is required');
+    }
+
+    // Accept EITHER shape: nested vendorData object OR flat fields directly on args
+    const vendorData = args.vendorData || {
+      companyName: args.companyName,
+      contactPerson: args.contactPerson,
+      email: args.email,
+      phone: args.phone,
+      gstNumber: args.gstNumber,
+      panNumber: args.panNumber,
+      bankAccount: args.bankAccount
+    };
+
+    // Check if vendorData ends up with all fields undefined (neither shape matched)
+    const hasAnyData = Object.values(vendorData).some(value => value !== undefined);
+    if (!hasAnyData) {
+      console.warn({
+        timestamp: new Date().toISOString(),
+        level: 'warn',
+        service: 'VendorTool',
+        message: 'updateVendor called with no usable vendor data',
+        vendorId,
+        args
+      });
     }
 
     // Upsert - create if doesn't exist, update if exists

@@ -20,7 +20,7 @@ class PlannerInvoker {
     this.config = {
       maxRetries: 2,
       retryDelay: 1000,
-      timeout: 45000 // 45 seconds
+      timeout: 45000 // 45 seconds - wraps a SINGLE groqService attempt (since groqService no longer retries internally)
     };
   }
 

@@ -22,6 +22,7 @@ const plannerValidator = require('./plannerValidator');
 const stateMachine = require('./workflowStateMachine');
 const dispatcher = require('./workflowDispatcher');
 const toolExecutor = require('../executor/toolExecutor');
+const toolRegistry = require('../registry/toolRegistry');
 
 class WorkflowRuntime {
   constructor() {
@@ -38,7 +39,13 @@ class WorkflowRuntime {
     }
 
     try {
+      // Initialize tools first (required for tool executor)
+      const { initializeTools } = require('../executor/initializeTools');
+      initializeTools();
+
+      // Initialize planner
       plannerInvoker.initialize();
+      
       this.isInitialized = true;
       this.log('info', 'WorkflowRuntime initialized successfully');
     } catch (error) {
@@ -79,6 +86,45 @@ class WorkflowRuntime {
         currentState: plannerRequest.workflowContext.currentState,
         documentsCount: plannerRequest.documents.length
       });
+
+      // Save incoming message unconditionally (before planner invocation)
+      if (workflowEvent.incomingMessage && workflowEvent.incomingMessage.content) {
+        try {
+          this.logEvent('SavingIncomingMessage', runtimeId, {
+            workflowId: workflowEvent.workflowId,
+            content: workflowEvent.incomingMessage.content?.substring(0, 50),
+            sender: 'vendor',
+            messageType: workflowEvent.incomingMessage.messageType || 'text'
+          });
+          
+          const conversationTool = toolRegistry.get('conversation');
+          if (conversationTool) {
+            const saveResult = await conversationTool.execute('save_message', {
+              workflowId: workflowEvent.workflowId,
+              message: workflowEvent.incomingMessage.content,
+              sender: 'vendor',
+              messageType: workflowEvent.incomingMessage.messageType || 'text'
+            });
+            
+            this.logEvent('IncomingMessageSaved', runtimeId, {
+              success: saveResult.success,
+              messageId: saveResult.data?.id
+            });
+          } else {
+            this.log('warn', 'Conversation tool not found - message not saved', {
+              runtimeId,
+              workflowId: workflowEvent.workflowId
+            });
+          }
+        } catch (error) {
+          this.log('error', 'Failed to save incoming message (continuing anyway)', {
+            runtimeId,
+            workflowId: workflowEvent.workflowId,
+            error: error.message,
+            stack: error.stack
+          });
+        }
+      }
 
       // Step 2: Invoke planner
       this.logEvent('PlannerInvoked', runtimeId);

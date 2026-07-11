@@ -8,8 +8,12 @@
   },
   "scripts": {
     "start": "node src/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "test:api": "node test-api.js"
+    "start:connectors": "node start-connectors.js",
+    "test": "node test-connectors.js",
+    "test:api": "node test-api.js",
+    "test:connectors": "node test-connectors.js",
+    "test:integration": "node test-integration.js",
+    "test:all": "node test-connectors.js && node test-api.js && node test-integration.js"
   },
   "keywords": [],
   "author": "",

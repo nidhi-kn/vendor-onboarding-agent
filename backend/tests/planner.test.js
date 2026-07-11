@@ -13,7 +13,7 @@
  */
 
 require('dotenv').config();
-const { initialize, executeAgentLoop } = require('../src/agent/agentLoop');
+const { initialize, executeAgentLoop } = require('../src/agent/workflowEngine');
 const { validatePlannerResponse } = require('../src/agent/plannerSchema');
 const { WORKFLOW_STATES, TOOL_TYPES, DECISION_TYPES } = require('../src/agent/constants');
 const {

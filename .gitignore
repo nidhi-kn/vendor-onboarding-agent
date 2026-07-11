@@ -25,3 +25,7 @@ Thumbs.db
 # Database
 *.db
 *.sqlite
+
+# Uploads (vendor documents should not be committed)
+backend/uploads/
+uploads/

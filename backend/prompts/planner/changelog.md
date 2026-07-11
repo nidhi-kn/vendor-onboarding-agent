@@ -2,6 +2,17 @@
 
 Version history and changes to the Planner Agent system prompt.
 
+## v1.0.1 (2026-07-11)
+
+**Status:** ✅ Production  
+**Model:** llama-3.3-70b-versatile
+
+### Bug Fix
+
+Clarified the vendor.update tool call shape to require a nested vendorData object, since the model was previously omitting it and causing tool execution failures.
+
+---
+
 ## v1.0 (2024-01-10)
 
 **Status:** ✅ Production  

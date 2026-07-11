@@ -64,11 +64,45 @@ class WorkflowService {
     };
 
     // Process through runtime
-    return await this.processWorkflow({
+    const runtimeResult = await this.processWorkflow({
       workflowId,
       trigger: 'connector_message',
       incomingMessage
     });
+
+    // Transform runtime result to expected connector format
+    return this.transformRuntimeResult(runtimeResult);
+  }
+
+  /**
+   * Transform workflow runtime result to connector-expected format
+   * @private
+   * @param {Object} runtimeResult - Result from workflow runtime
+   * @returns {Object} Transformed result
+   */
+  transformRuntimeResult(runtimeResult) {
+    if (runtimeResult.status === 'error') {
+      return {
+        workflowState: null,
+        responseMessage: 'I encountered an error processing your request. Please try again.',
+        error: runtimeResult.metadata?.error?.message || 'Unknown error'
+      };
+    }
+
+    // Extract response message from planner response
+    let responseMessage = 'Thank you for your message.'; // Default
+    
+    if (runtimeResult.plannerResponse && runtimeResult.plannerResponse.responseMessage) {
+      responseMessage = runtimeResult.plannerResponse.responseMessage;
+    }
+
+    return {
+      workflowState: runtimeResult.nextState || runtimeResult.currentState,
+      responseMessage: responseMessage,
+      currentState: runtimeResult.currentState,
+      nextState: runtimeResult.nextState,
+      executionSuccess: runtimeResult.executionResult?.success || false
+    };
   }
 
   /**

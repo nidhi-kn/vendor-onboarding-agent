@@ -11,8 +11,11 @@
  * - Repositories
  */
 
-const TelegramBot = require('node-telegram-bot-api');
+const { TelegramBot } = require('node-telegram-bot-api');
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+const { v4: uuidv4 } = require('uuid');
 const Connector = require('./connector.interface');
 const connectorMetrics = require('./connectorMetrics');
 
@@ -116,8 +119,8 @@ class TelegramConnector extends Connector {
         from: msg.from.username
       }));
 
-      // Normalize message
-      const normalizedMessage = this.normalizeInbound(msg);
+      // Normalize message (now async to handle file downloads)
+      const normalizedMessage = await this.normalizeInbound(msg);
 
       // Send to backend API with retry
       const response = await this.sendToBackend(normalizedMessage);
@@ -263,7 +266,7 @@ class TelegramConnector extends Connector {
   /**
    * Normalize Telegram message to standard format
    */
-  normalizeInbound(telegramMessage) {
+  async normalizeInbound(telegramMessage) {
     return {
       connectorId: this.connectorId,
       workflowId: `workflow_telegram_${telegramMessage.chat.id}`,
@@ -271,35 +274,176 @@ class TelegramConnector extends Connector {
       senderId: telegramMessage.from.id.toString(),
       senderName: telegramMessage.from.username || telegramMessage.from.first_name || 'User',
       text: telegramMessage.text || '',
-      attachments: this.extractAttachments(telegramMessage),
+      attachments: await this.extractAttachments(telegramMessage),
       receivedAt: new Date(telegramMessage.date * 1000).toISOString()
     };
   }
 
   /**
+   * Download file from Telegram and save to local disk
+   * Note: In production, this would upload to object storage (S3-equivalent).
+   * Local disk is used as a scoped-down substitute for the assignment window.
+   * @private
+   * @param {string} fileId - Telegram file ID
+   * @returns {Promise<Object>} Object with localPath, fileName, mimeType
+   */
+  async downloadTelegramFile(fileId) {
+    try {
+      // Get file info from Telegram
+      const file = await this.bot.getFile(fileId);
+      const filePath = file.file_path;
+
+      // Build download URL
+      const downloadUrl = `https://api.telegram.org/file/bot${this.botToken}/${filePath}`;
+
+      // Ensure uploads directory exists (at backend root, sibling to package.json)
+      const uploadsDir = path.join(__dirname, '..', '..', 'uploads');
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      // Extract file extension and name
+      const originalFileName = path.basename(filePath);
+      const fileExt = path.extname(originalFileName);
+      const baseFileName = path.basename(originalFileName, fileExt);
+
+      // Generate unique filename with UUID prefix to avoid collisions
+      const uniqueFileName = `${uuidv4()}-${baseFileName}${fileExt}`;
+      const localPath = path.join(uploadsDir, uniqueFileName);
+
+      // Download file
+      const response = await axios.get(downloadUrl, {
+        responseType: 'stream',
+        timeout: 60000 // 60 second timeout for large files
+      });
+
+      // Pipe to file
+      const writer = fs.createWriteStream(localPath);
+      response.data.pipe(writer);
+
+      // Wait for download to complete
+      await new Promise((resolve, reject) => {
+        writer.on('finish', resolve);
+        writer.on('error', reject);
+      });
+
+      console.log(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level: 'info',
+        service: 'TelegramConnector',
+        message: 'File downloaded successfully',
+        fileId,
+        localPath
+      }));
+
+      return {
+        localPath: localPath,
+        fileName: originalFileName,
+        mimeType: response.headers['content-type'] || 'application/octet-stream'
+      };
+    } catch (error) {
+      console.error(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level: 'error',
+        service: 'TelegramConnector',
+        message: 'Failed to download Telegram file',
+        fileId,
+        error: error.message
+      }));
+      throw error;
+    }
+  }
+
+  /**
    * Extract attachments from Telegram message
+   * Downloads files and returns attachment objects with url field
    * @private
    */
-  extractAttachments(telegramMessage) {
+  async extractAttachments(telegramMessage) {
     const attachments = [];
 
+    // Handle documents
     if (telegramMessage.document) {
-      attachments.push({
-        type: 'document',
-        fileId: telegramMessage.document.file_id,
-        fileName: telegramMessage.document.file_name,
-        mimeType: telegramMessage.document.mime_type,
-        fileSize: telegramMessage.document.file_size
-      });
+      const doc = telegramMessage.document;
+      const fileSize = doc.file_size || 0;
+
+      // Size guard: skip if exceeds 10MB for documents
+      if (fileSize > 10 * 1024 * 1024) {
+        console.log(JSON.stringify({
+          timestamp: new Date().toISOString(),
+          level: 'warn',
+          service: 'TelegramConnector',
+          message: 'Document exceeds 10MB limit, skipping',
+          fileId: doc.file_id,
+          fileSize
+        }));
+      } else {
+        try {
+          // Download the file
+          const downloadedFile = await this.downloadTelegramFile(doc.file_id);
+
+          attachments.push({
+            type: 'document',
+            fileId: doc.file_id,
+            fileName: doc.file_name || downloadedFile.fileName,
+            mimeType: doc.mime_type || downloadedFile.mimeType,
+            fileSize: fileSize,
+            url: downloadedFile.localPath
+          });
+        } catch (error) {
+          // Log error but don't crash - vendor should still get a reply
+          console.error(JSON.stringify({
+            timestamp: new Date().toISOString(),
+            level: 'error',
+            service: 'TelegramConnector',
+            message: 'Failed to download document, skipping attachment',
+            fileId: doc.file_id,
+            error: error.message
+          }));
+        }
+      }
     }
 
+    // Handle photos
     if (telegramMessage.photo) {
       const photo = telegramMessage.photo[telegramMessage.photo.length - 1]; // Get largest photo
-      attachments.push({
-        type: 'photo',
-        fileId: photo.file_id,
-        fileSize: photo.file_size
-      });
+      const fileSize = photo.file_size || 0;
+
+      // Size guard: skip if exceeds 20MB for photos
+      if (fileSize > 20 * 1024 * 1024) {
+        console.log(JSON.stringify({
+          timestamp: new Date().toISOString(),
+          level: 'warn',
+          service: 'TelegramConnector',
+          message: 'Photo exceeds 20MB limit, skipping',
+          fileId: photo.file_id,
+          fileSize
+        }));
+      } else {
+        try {
+          // Download the file
+          const downloadedFile = await this.downloadTelegramFile(photo.file_id);
+
+          attachments.push({
+            type: 'photo',
+            fileId: photo.file_id,
+            fileName: downloadedFile.fileName,
+            mimeType: downloadedFile.mimeType,
+            fileSize: fileSize,
+            url: downloadedFile.localPath
+          });
+        } catch (error) {
+          // Log error but don't crash - vendor should still get a reply
+          console.error(JSON.stringify({
+            timestamp: new Date().toISOString(),
+            level: 'error',
+            service: 'TelegramConnector',
+            message: 'Failed to download photo, skipping attachment',
+            fileId: photo.file_id,
+            error: error.message
+          }));
+        }
+      }
     }
 
     return attachments;

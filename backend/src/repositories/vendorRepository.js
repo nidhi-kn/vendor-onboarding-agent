@@ -70,6 +70,9 @@ async function update(id, data) {
  * @returns {Promise<Object>} Vendor
  */
 async function upsert(id, data) {
+  // Guard against undefined data object
+  data = data || {};
+
   return await prisma.vendor.upsert({
     where: { id },
     update: {

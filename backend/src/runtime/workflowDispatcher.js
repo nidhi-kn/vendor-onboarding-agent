@@ -27,7 +27,7 @@ class WorkflowDispatcher {
     // Convert tool calls to execution tasks
     if (Array.isArray(plannerResponse.toolCalls)) {
       executionPlan.executionTasks = plannerResponse.toolCalls.map((toolCall, index) => 
-        this.createExecutionTask(toolCall, index)
+        this.createExecutionTask(toolCall, index, workflowContext)
       );
     }
 
@@ -54,11 +54,14 @@ class WorkflowDispatcher {
    * Create execution task from tool call
    * @private
    */
-  createExecutionTask(toolCall, index) {
+  createExecutionTask(toolCall, index, workflowContext) {
     return {
       tool: toolCall.tool,
       action: toolCall.action,
-      args: toolCall.parameters || {},
+      args: {
+        workflowId: workflowContext.workflowId,
+        ...(toolCall.parameters || {})
+      },
       priority: this.determinePriority(toolCall),
       taskId: `task_${Date.now()}_${index}`
     };
