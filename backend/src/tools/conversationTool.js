@@ -2,14 +2,14 @@
  * conversationTool.js
  * 
  * Manages conversation/message operations.
- * Currently uses in-memory storage (mocked).
- * Phase 4 will replace with repository + database.
+ * Uses Prisma for persistent storage.
  */
+
+const messageRepository = require('../repositories/messageRepository');
 
 class ConversationTool {
   constructor() {
-    // In-memory storage (mock)
-    this.conversations = new Map();
+    // No in-memory storage - using database via repository
   }
 
   /**
@@ -42,23 +42,12 @@ class ConversationTool {
       throw new Error('workflowId and message are required');
     }
 
-    const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    const messageRecord = {
-      messageId,
+    const messageRecord = await messageRepository.create({
       workflowId,
       content: message,
       sender: sender || 'system',
-      messageType: messageType || 'text',
-      timestamp: new Date()
-    };
-
-    // Store by workflow
-    if (!this.conversations.has(workflowId)) {
-      this.conversations.set(workflowId, []);
-    }
-
-    this.conversations.get(workflowId).push(messageRecord);
+      messageType: messageType || 'text'
+    });
 
     return {
       success: true,
@@ -76,12 +65,9 @@ class ConversationTool {
       throw new Error('workflowId is required');
     }
 
-    let messages = this.conversations.get(workflowId) || [];
-
-    // Apply limit if specified
-    if (limit && limit > 0) {
-      messages = messages.slice(-limit);
-    }
+    const messages = await messageRepository.listByWorkflowId(workflowId, {
+      take: limit || undefined
+    });
 
     return {
       success: true,

@@ -2,14 +2,14 @@
  * vendorTool.js
  * 
  * Manages vendor data operations.
- * Currently uses in-memory storage (mocked).
- * Phase 4 will replace with repository + database.
+ * Uses Prisma for persistent storage.
  */
+
+const vendorRepository = require('../repositories/vendorRepository');
 
 class VendorTool {
   constructor() {
-    // In-memory storage (mock)
-    this.vendors = new Map();
+    // No in-memory storage - using database via repository
   }
 
   /**
@@ -45,18 +45,16 @@ class VendorTool {
       throw new Error('vendorId is required');
     }
 
-    if (this.vendors.has(vendorId)) {
+    // Check if vendor exists
+    const existing = await vendorRepository.findById(vendorId);
+    if (existing) {
       throw new Error(`Vendor ${vendorId} already exists`);
     }
 
-    const vendor = {
+    const vendor = await vendorRepository.create({
       vendorId,
-      ...vendorData,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-
-    this.vendors.set(vendorId, vendor);
+      ...vendorData
+    });
 
     return {
       success: true,
@@ -74,7 +72,7 @@ class VendorTool {
       throw new Error('vendorId is required');
     }
 
-    const vendor = this.vendors.get(vendorId);
+    const vendor = await vendorRepository.findById(vendorId);
 
     if (!vendor) {
       return {
@@ -99,24 +97,8 @@ class VendorTool {
       throw new Error('vendorId is required');
     }
 
-    let vendor = this.vendors.get(vendorId);
-
-    if (!vendor) {
-      // Create if doesn't exist
-      vendor = {
-        vendorId,
-        createdAt: new Date()
-      };
-    }
-
-    // Update fields
-    vendor = {
-      ...vendor,
-      ...vendorData,
-      updatedAt: new Date()
-    };
-
-    this.vendors.set(vendorId, vendor);
+    // Upsert - create if doesn't exist, update if exists
+    const vendor = await vendorRepository.upsert(vendorId, vendorData);
 
     return {
       success: true,

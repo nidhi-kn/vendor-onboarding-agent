@@ -2,14 +2,14 @@
  * loggerTool.js
  * 
  * Logs workflow events and maintains timeline.
- * Currently uses console logging (mocked).
- * Phase 4 can replace with database-backed logging.
+ * Uses Prisma for persistent audit logging.
  */
+
+const auditLogRepository = require('../repositories/auditLogRepository');
 
 class LoggerTool {
   constructor() {
-    // In-memory timeline storage (mock)
-    this.timelines = new Map();
+    // No in-memory storage - using database via repository
   }
 
   /**
@@ -42,23 +42,13 @@ class LoggerTool {
       throw new Error('workflowId and event are required');
     }
 
-    const eventId = `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    const logEntry = {
-      eventId,
+    const logEntry = await auditLogRepository.create({
       workflowId,
-      event,
+      actor: 'agent',
+      action: event,
       description: description || '',
-      metadata: metadata || {},
-      timestamp: new Date()
-    };
-
-    // Store in timeline
-    if (!this.timelines.has(workflowId)) {
-      this.timelines.set(workflowId, []);
-    }
-
-    this.timelines.get(workflowId).push(logEntry);
+      metadata: metadata || {}
+    });
 
     // Also log to console
     console.log(JSON.stringify({
@@ -86,12 +76,9 @@ class LoggerTool {
       throw new Error('workflowId is required');
     }
 
-    let events = this.timelines.get(workflowId) || [];
-
-    // Apply limit if specified
-    if (limit && limit > 0) {
-      events = events.slice(-limit);
-    }
+    const events = await auditLogRepository.listByWorkflowId(workflowId, {
+      take: limit || undefined
+    });
 
     return {
       success: true,

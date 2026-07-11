@@ -2,16 +2,16 @@
  * workflowTool.js
  * 
  * Manages workflow state operations.
- * Currently uses in-memory storage (mocked).
- * Phase 4 will replace with repository + database.
+ * Uses Prisma for persistent storage.
  */
 
 const { WORKFLOW_STATES } = require('../agent/constants');
+const workflowRepository = require('../repositories/workflowRepository');
+const auditLogRepository = require('../repositories/auditLogRepository');
 
 class WorkflowTool {
   constructor() {
-    // In-memory storage (mock)
-    this.workflows = new Map();
+    // No in-memory storage - using database via repository
   }
 
   /**
@@ -47,17 +47,27 @@ class WorkflowTool {
       throw new Error('workflowId is required');
     }
 
-    const workflow = this.workflows.get(workflowId) || {
-      workflowId,
-      currentState: WORKFLOW_STATES.START,
-      previousState: null,
-      stateHistory: [WORKFLOW_STATES.START],
-      updatedAt: new Date()
-    };
+    let workflow = await workflowRepository.findById(workflowId);
+
+    if (!workflow) {
+      // Create workflow if doesn't exist
+      workflow = await workflowRepository.create({
+        workflowId,
+        currentState: WORKFLOW_STATES.START,
+        previousState: null,
+        stateHistory: [WORKFLOW_STATES.START]
+      });
+    }
 
     return {
       success: true,
-      data: workflow
+      data: {
+        workflowId: workflow.id,
+        currentState: workflow.currentState,
+        previousState: workflow.previousState,
+        stateHistory: workflow.stateHistory,
+        updatedAt: workflow.updatedAt
+      }
     };
   }
 
@@ -71,27 +81,42 @@ class WorkflowTool {
       throw new Error('workflowId and toState are required');
     }
 
-    const workflow = this.workflows.get(workflowId) || {
+    let workflow = await workflowRepository.findById(workflowId);
+
+    if (!workflow) {
+      // Create if doesn't exist
+      workflow = await workflowRepository.create({
+        workflowId,
+        currentState: WORKFLOW_STATES.START,
+        stateHistory: [WORKFLOW_STATES.START]
+      });
+    }
+
+    const previousState = workflow.currentState;
+
+    // Update workflow state
+    const updatedWorkflow = await workflowRepository.updateState(workflowId, {
+      currentState: toState,
+      previousState: previousState
+    });
+
+    // Create audit log for state transition
+    await auditLogRepository.create({
       workflowId,
-      currentState: WORKFLOW_STATES.START,
-      stateHistory: [WORKFLOW_STATES.START]
-    };
-
-    // Update state
-    workflow.previousState = workflow.currentState;
-    workflow.currentState = toState;
-    workflow.stateHistory.push(toState);
-    workflow.updatedAt = new Date();
-
-    this.workflows.set(workflowId, workflow);
+      actor: 'agent',
+      action: 'state_transition',
+      fromState: previousState,
+      toState: toState,
+      description: `Workflow transitioned from ${previousState} to ${toState}`
+    });
 
     return {
       success: true,
       data: {
         workflowId,
-        fromState: workflow.previousState,
-        toState: workflow.currentState,
-        transitionedAt: workflow.updatedAt
+        fromState: previousState,
+        toState: toState,
+        transitionedAt: updatedWorkflow.updatedAt
       }
     };
   }
@@ -102,7 +127,7 @@ class WorkflowTool {
   async validateState(args) {
     const { workflowId, expectedState } = args;
 
-    const workflow = this.workflows.get(workflowId);
+    const workflow = await workflowRepository.findById(workflowId);
 
     if (!workflow) {
       return {

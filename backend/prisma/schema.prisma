@@ -1,0 +1,152 @@
+// Prisma Schema for Vendor Onboarding Agent
+// Database: SQLite (easily switchable to PostgreSQL)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Vendor model - stores vendor company information
+model Vendor {
+  id            String    @id @default(uuid())
+  companyName   String?
+  contactPerson String?
+  email         String?
+  phone         String?
+  gstNumber     String?
+  panNumber     String?
+  bankAccount   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  workflows     Workflow[]
+  
+  @@map("vendors")
+}
+
+// Workflow model - tracks onboarding workflow state
+model Workflow {
+  id            String    @id @default(uuid())
+  vendorId      String?
+  currentState  String
+  previousState String?
+  channel       String?   // telegram, web, api
+  stateHistory  String    @default("[]") // JSON array of states
+  metadata      String?   // JSON metadata
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  vendor        Vendor?   @relation(fields: [vendorId], references: [id])
+  messages      Message[]
+  documents     Document[]
+  approvals     Approval[]
+  agentRuns     AgentRun[]
+  auditLogs     AuditLog[]
+  
+  @@map("workflows")
+}
+
+// Message model - conversation history
+model Message {
+  id          String    @id @default(uuid())
+  workflowId  String
+  content     String
+  sender      String    // vendor, agent, system
+  messageType String    @default("text") // text, document, system
+  metadata    String?   // JSON metadata
+  createdAt   DateTime  @default(now())
+  
+  workflow    Workflow  @relation(fields: [workflowId], references: [id])
+  
+  @@map("messages")
+  @@index([workflowId])
+}
+
+// Document model - uploaded documents
+model Document {
+  id           String    @id @default(uuid())
+  workflowId   String
+  documentType String    // gst_certificate, pan_card, bank_proof
+  fileName     String?
+  fileUrl      String?
+  status       String    @default("pending") // pending, verified, rejected
+  verifiedAt   DateTime?
+  uploadedAt   DateTime  @default(now())
+  metadata     String?   // JSON metadata
+  
+  workflow     Workflow  @relation(fields: [workflowId], references: [id])
+  
+  @@map("documents")
+  @@index([workflowId])
+}
+
+// Approval model - finance approval requests
+model Approval {
+  id          String    @id @default(uuid())
+  workflowId  String
+  vendorId    String?
+  status      String    @default("pending") // pending, approved, rejected
+  requestedBy String?
+  approvedBy  String?
+  rejectedBy  String?
+  reason      String?
+  requestedAt DateTime  @default(now())
+  approvedAt  DateTime?
+  rejectedAt  DateTime?
+  metadata    String?   // JSON metadata
+  
+  workflow    Workflow  @relation(fields: [workflowId], references: [id])
+  
+  @@map("approvals")
+  @@index([workflowId])
+  @@index([status])
+}
+
+// AgentRun model - tracks every planner invocation
+model AgentRun {
+  id              String    @id @default(uuid())
+  workflowId      String
+  plannerInput    String    // JSON of PlannerRequest
+  plannerOutput   String?   // JSON of PlannerResponse
+  reasoning       String?
+  decision        String?   // JSON of decision object
+  toolCallsCount  Int       @default(0)
+  status          String    // success, error, timeout
+  errorMessage    String?
+  latencyMs       Int?
+  promptVersion   String    @default("v1")
+  modelName       String    @default("llama-3.3-70b-versatile")
+  createdAt       DateTime  @default(now())
+  completedAt     DateTime?
+  
+  workflow        Workflow  @relation(fields: [workflowId], references: [id])
+  
+  @@map("agent_runs")
+  @@index([workflowId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// AuditLog model - audit trail for workflow transitions
+model AuditLog {
+  id          String    @id @default(uuid())
+  workflowId  String
+  actor       String    // agent, user, system
+  action      String    // state_transition, document_upload, approval_request
+  fromState   String?
+  toState     String?
+  description String?
+  metadata    String?   // JSON metadata
+  timestamp   DateTime  @default(now())
+  
+  workflow    Workflow  @relation(fields: [workflowId], references: [id])
+  
+  @@map("audit_logs")
+  @@index([workflowId])
+  @@index([timestamp])
+  @@index([action])
+}

@@ -2,14 +2,14 @@
  * approvalTool.js
  * 
  * Manages approval workflow operations.
- * Currently uses in-memory storage (mocked).
- * Phase 4 will replace with repository + database.
+ * Uses Prisma for persistent storage.
  */
+
+const approvalRepository = require('../repositories/approvalRepository');
 
 class ApprovalTool {
   constructor() {
-    // In-memory storage (mock)
-    this.approvals = new Map();
+    // No in-memory storage - using database via repository
   }
 
   /**
@@ -48,23 +48,12 @@ class ApprovalTool {
       throw new Error('workflowId is required');
     }
 
-    const approvalId = `appr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    const approval = {
-      approvalId,
+    const approval = await approvalRepository.create({
       workflowId,
       vendorId: vendorId || null,
       status: 'pending',
-      requestedBy: requestedBy || 'system',
-      requestedAt: new Date(),
-      approvedBy: null,
-      approvedAt: null,
-      rejectedBy: null,
-      rejectedAt: null,
-      reason: null
-    };
-
-    this.approvals.set(approvalId, approval);
+      requestedBy: requestedBy || 'system'
+    });
 
     return {
       success: true,
@@ -82,21 +71,12 @@ class ApprovalTool {
       throw new Error('approvalId is required');
     }
 
-    const approval = this.approvals.get(approvalId);
-
-    if (!approval) {
-      return {
-        success: false,
-        error: 'Approval request not found'
-      };
-    }
-
-    approval.status = 'approved';
-    approval.approvedBy = approvedBy || 'admin';
-    approval.approvedAt = new Date();
-    approval.reason = reason || null;
-
-    this.approvals.set(approvalId, approval);
+    const approval = await approvalRepository.update(approvalId, {
+      status: 'approved',
+      approvedBy: approvedBy || 'admin',
+      approvedAt: new Date(),
+      reason: reason || null
+    });
 
     return {
       success: true,
@@ -114,21 +94,12 @@ class ApprovalTool {
       throw new Error('approvalId is required');
     }
 
-    const approval = this.approvals.get(approvalId);
-
-    if (!approval) {
-      return {
-        success: false,
-        error: 'Approval request not found'
-      };
-    }
-
-    approval.status = 'rejected';
-    approval.rejectedBy = rejectedBy || 'admin';
-    approval.rejectedAt = new Date();
-    approval.reason = reason || 'Not specified';
-
-    this.approvals.set(approvalId, approval);
+    const approval = await approvalRepository.update(approvalId, {
+      status: 'rejected',
+      rejectedBy: rejectedBy || 'admin',
+      rejectedAt: new Date(),
+      reason: reason || 'Not specified'
+    });
 
     return {
       success: true,
@@ -143,7 +114,7 @@ class ApprovalTool {
     const { approvalId, workflowId } = args;
 
     if (approvalId) {
-      const approval = this.approvals.get(approvalId);
+      const approval = await approvalRepository.findById(approvalId);
       
       return {
         success: true,
@@ -152,9 +123,7 @@ class ApprovalTool {
     }
 
     if (workflowId) {
-      // Find by workflow
-      const approval = Array.from(this.approvals.values())
-        .find(a => a.workflowId === workflowId);
+      const approval = await approvalRepository.findByWorkflowId(workflowId);
       
       return {
         success: true,

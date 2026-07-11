@@ -2,16 +2,15 @@
  * documentTool.js
  * 
  * Manages document operations.
- * Currently uses in-memory storage (mocked).
- * Phase 4 will replace with repository + database.
+ * Uses Prisma for persistent storage.
  */
 
 const { DOCUMENT_TYPES } = require('../agent/constants');
+const documentRepository = require('../repositories/documentRepository');
 
 class DocumentTool {
   constructor() {
-    // In-memory storage (mock)
-    this.documents = new Map();
+    // No in-memory storage - using database via repository
   }
 
   /**
@@ -50,24 +49,13 @@ class DocumentTool {
       throw new Error('workflowId and documentType are required');
     }
 
-    const documentId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    const document = {
-      documentId,
+    const document = await documentRepository.create({
       workflowId,
       documentType,
       fileName: fileName || 'unknown',
       fileUrl: fileUrl || null,
-      status: 'pending',
-      uploadedAt: new Date()
-    };
-
-    // Store by workflow
-    if (!this.documents.has(workflowId)) {
-      this.documents.set(workflowId, []);
-    }
-
-    this.documents.get(workflowId).push(document);
+      status: 'pending'
+    });
 
     return {
       success: true,
@@ -85,7 +73,7 @@ class DocumentTool {
       throw new Error('workflowId is required');
     }
 
-    const documents = this.documents.get(workflowId) || [];
+    const documents = await documentRepository.listByWorkflowId(workflowId);
 
     return {
       success: true,
@@ -103,18 +91,10 @@ class DocumentTool {
       throw new Error('workflowId and documentId are required');
     }
 
-    const documents = this.documents.get(workflowId) || [];
-    const document = documents.find(d => d.documentId === documentId);
-
-    if (!document) {
-      return {
-        success: false,
-        error: 'Document not found'
-      };
-    }
-
-    document.status = status || 'verified';
-    document.verifiedAt = new Date();
+    const document = await documentRepository.update(documentId, {
+      status: status || 'verified',
+      verifiedAt: new Date()
+    });
 
     return {
       success: true,
@@ -132,7 +112,7 @@ class DocumentTool {
       throw new Error('workflowId is required');
     }
 
-    const documents = this.documents.get(workflowId) || [];
+    const documents = await documentRepository.listByWorkflowId(workflowId);
     const uploadedTypes = documents.map(d => d.documentType);
 
     const requiredTypes = [

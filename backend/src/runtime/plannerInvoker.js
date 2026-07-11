@@ -6,12 +6,14 @@
  * 
  * Responsibilities:
  * - Invoke planner.plan()
+ * - Persist AgentRun for observability
  * - Handle retries on transient failures
  * - Handle timeout
  * - Surface planner errors with context
  */
 
 const planner = require('../agent/planner');
+const agentRunRepository = require('../repositories/agentRunRepository');
 
 class PlannerInvoker {
   constructor() {
@@ -43,6 +45,16 @@ class PlannerInvoker {
       maxRetries = this.config.maxRetries
     } = options;
 
+    const startTime = Date.now();
+    
+    // Create AgentRun record
+    const agentRun = await agentRunRepository.create({
+      workflowId: plannerRequest.workflowContext.workflowId,
+      plannerInput: plannerRequest,
+      status: 'pending',
+      promptVersion: 'v1'
+    });
+
     let lastError = null;
     let attempt = 0;
 
@@ -50,20 +62,39 @@ class PlannerInvoker {
       attempt++;
 
       try {
-        this.log('info', `Invoking planner (attempt ${attempt}/${maxRetries})`);
+        this.log('info', `Invoking planner (attempt ${attempt}/${maxRetries})`, {
+          agentRunId: agentRun.id
+        });
 
         const result = await this.executeWithTimeout(
           () => planner.plan(plannerRequest),
           timeout
         );
 
-        this.log('info', `Planner invocation successful (attempt ${attempt})`);
+        const latencyMs = Date.now() - startTime;
+
+        // Update AgentRun with success
+        await agentRunRepository.complete(agentRun.id, {
+          plannerOutput: result,
+          reasoning: result.reasoning,
+          decision: result.decision,
+          toolCallsCount: result.toolCalls?.length || 0,
+          status: 'success',
+          latencyMs
+        });
+
+        this.log('info', `Planner invocation successful (attempt ${attempt})`, {
+          agentRunId: agentRun.id,
+          latencyMs
+        });
+        
         return result;
 
       } catch (error) {
         lastError = error;
         
         this.log('error', `Planner invocation failed (attempt ${attempt})`, {
+          agentRunId: agentRun.id,
           error: error.message
         });
 
@@ -77,7 +108,14 @@ class PlannerInvoker {
       }
     }
 
-    // All retries exhausted
+    // All retries exhausted - update AgentRun with error
+    const latencyMs = Date.now() - startTime;
+    await agentRunRepository.complete(agentRun.id, {
+      status: 'error',
+      errorMessage: lastError.message,
+      latencyMs
+    });
+
     throw new Error(
       `Planner invocation failed after ${attempt} attempts: ${lastError.message}`
     );
