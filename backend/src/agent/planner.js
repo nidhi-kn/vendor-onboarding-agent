@@ -168,13 +168,16 @@ class Planner {
       throw new Error('workflowContext.workflowId is required');
     }
 
-    // Validate incomingMessage
+    // Validate incomingMessage - allow either text content OR document attachment
     if (!request.incomingMessage.messageType) {
       throw new Error('incomingMessage.messageType is required');
     }
 
-    if (!request.incomingMessage.content) {
-      throw new Error('incomingMessage.content is required');
+    const hasText = request.incomingMessage.content && request.incomingMessage.content.trim().length > 0;
+    const hasDocument = request.incomingMessage.documentUrl || request.incomingMessage.documentType;
+    
+    if (!hasText && !hasDocument) {
+      throw new Error('incomingMessage must have either content or a document attachment');
     }
   }
 

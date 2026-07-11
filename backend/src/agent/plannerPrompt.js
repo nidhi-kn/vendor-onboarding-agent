@@ -54,6 +54,11 @@ function generateUserPrompt(context) {
     incomingMessage
   } = context;
 
+  // Use placeholder for empty content when document is present
+  const contentForPrompt = incomingMessage.content && incomingMessage.content.trim().length > 0
+    ? incomingMessage.content
+    : (incomingMessage.documentUrl ? '[Vendor uploaded a document with no caption text]' : '');
+
   return `# CURRENT CONTEXT
 
 ## Workflow State
@@ -83,7 +88,7 @@ ${conversationHistory.slice(-5).map(msg =>
 ## Incoming Message
 Type: ${incomingMessage.messageType}
 From: ${incomingMessage.senderName}
-Content: ${incomingMessage.content}
+Content: ${contentForPrompt}
 ${incomingMessage.documentUrl ? `Document: ${incomingMessage.documentUrl}` : ''}
 
 # YOUR TASK
