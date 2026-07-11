@@ -9,6 +9,40 @@ const approvalTool = require('../tools/approvalTool');
 
 class ApprovalController {
   /**
+   * GET /api/approvals
+   * List all approvals
+   */
+  async listApprovals(req, res, next) {
+    try {
+      const { status, skip, take } = req.query;
+
+      // Build query options
+      const options = {
+        skip: skip ? parseInt(skip) : undefined,
+        take: take ? parseInt(take) : undefined,
+        where: status ? { status } : undefined
+      };
+
+      // Get approvals
+      const approvals = await approvalRepository.list(options);
+
+      // Return success
+      res.status(200).json({
+        success: true,
+        data: {
+          approvals,
+          count: approvals.length
+        },
+        metadata: {
+          timestamp: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * POST /api/approval/:workflowId
    * Approve or reject workflow
    */

@@ -19,6 +19,7 @@ const connectorRoutes = require('./routes/connector.routes');
 const vendorRoutes = require('./routes/vendor.routes');
 const approvalRoutes = require('./routes/approval.routes');
 const timelineRoutes = require('./routes/timeline.routes');
+const logRoutes = require('./routes/log.routes');
 
 // Create Express app
 const app = express();
@@ -47,6 +48,7 @@ app.use('/api/connector', connectorRoutes);
 app.use('/api/vendor', vendorRoutes);
 app.use('/api/approval', approvalRoutes);
 app.use('/api/timeline', timelineRoutes);
+app.use('/api/logs', logRoutes);
 
 // 404 Handler
 app.use(notFound);
