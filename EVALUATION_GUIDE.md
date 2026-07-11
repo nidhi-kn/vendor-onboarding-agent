@@ -46,7 +46,7 @@ TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
 **Frontend Configuration** (`frontend/.env.local`):
 ```bash
 cd frontend
-echo "NEXT_PUBLIC_API_URL=http://localhost:5000" > .env.local
+echo "NEXT_PUBLIC_API_URL=http://localhost:3000" > .env.local
 ```
 
 ### Step 3: Initialize Database
@@ -64,14 +64,14 @@ npx prisma migrate deploy
 cd backend
 npm start
 ```
-Expected output: `Server started on port 5000`
+Expected output: `Server started on port 3000`
 
 **Terminal 2 - Frontend Dashboard**:
 ```bash
 cd frontend
 npm run dev
 ```
-Expected output: Frontend running on `http://localhost:3000`
+Expected output: Frontend running on `http://localhost:3001`
 
 **Terminal 3 - Connectors** (Optional - if using Telegram):
 ```bash
@@ -83,7 +83,7 @@ npm run start:connectors
 
 **Check Backend Health**:
 ```bash
-curl http://localhost:5000/health
+curl http://localhost:3000/health
 ```
 Expected response:
 ```json
@@ -166,10 +166,10 @@ Expected response:
 
 ```bash
 # Test health endpoint
-curl http://localhost:5000/health
+curl http://localhost:3000/health
 
 # Test workflow processing (requires a workflow ID)
-curl -X POST http://localhost:5000/api/workflow/process \
+curl -X POST http://localhost:3000/api/workflow/process \
   -H "Content-Type: application/json" \
   -d '{
     "workflowId": "test-workflow-id",
@@ -271,7 +271,7 @@ View metrics in:
 **Solution**: Verify `TELEGRAM_BOT_TOKEN` in `.env` and connectors are running
 
 ### Issue: Tests failing
-**Solution**: Ensure backend is running on port 5000 before running API tests
+**Solution**: Ensure backend is running on port 3000 before running API tests
 
 ## Evaluation Criteria
 

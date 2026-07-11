@@ -306,7 +306,7 @@ GROQ_API_KEY=your_groq_api_key_here
 GROQ_MODEL=llama-3.1-8b-instant
 
 # ✅ Required - Server  
-PORT=5000
+PORT=3000
 NODE_ENV=development
 
 # ✅ Required - Database
@@ -314,7 +314,7 @@ DATABASE_URL="file:./prisma/dev.db"
 
 # 🔶 Optional - Telegram Integration
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-API_BASE_URL=http://localhost:5000
+API_BASE_URL=http://localhost:3000
 
 # 🔶 Optional - Testing
 ENABLE_MOCK_ERP=true
@@ -322,7 +322,7 @@ ENABLE_MOCK_ERP=true
 
 **Frontend Environment** (`frontend/.env.local`):
 ```bash
-NEXT_PUBLIC_API_URL=http://localhost:5000
+NEXT_PUBLIC_API_URL=http://localhost:3000
 ```
 
 ### 🎯 **Running the System**
@@ -332,12 +332,12 @@ NEXT_PUBLIC_API_URL=http://localhost:5000
 # Terminal 1 - Backend API
 cd backend
 npm start
-# ✅ Backend running on http://localhost:5000
+# ✅ Backend running on http://localhost:3000
 
 # Terminal 2 - Frontend Dashboard  
 cd frontend
 npm run dev
-# ✅ Dashboard running on http://localhost:3000
+# ✅ Dashboard running on http://localhost:3001
 
 # Terminal 3 - Connectors (if using Telegram)
 cd backend
@@ -349,19 +349,19 @@ npm run start:connectors
 ```bash
 cd backend
 npm start
-# ✅ API available at http://localhost:5000/health
+# ✅ API available at http://localhost:3000/health
 ```
 
 ### ✅ **Verification**
 
 **Check Backend Health:**
 ```bash
-curl http://localhost:5000/health
+curl http://localhost:3000/health
 # Expected: {"status":"healthy","timestamp":"..."}
 ```
 
 **Access Frontend Dashboard:**
-- Open: http://localhost:3000
+- Open: http://localhost:3001
 - Should display: Dashboard with metrics and vendor table
 
 **Test Telegram Bot** (if configured):
@@ -531,7 +531,7 @@ npm run dev
 **Real-time Health Monitoring:**
 ```bash
 # Check system health
-curl http://localhost:5000/health
+curl http://localhost:3000/health
 
 # Response
 {
