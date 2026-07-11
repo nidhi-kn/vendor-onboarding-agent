@@ -195,6 +195,39 @@ vendor-onboarding-agent/
 │   ├── start-connectors.js     # Connector startup
 │   ├── package.json
 │   └── .env
+├── frontend/
+│   ├── app/                    # Next.js App Router pages
+│   │   ├── page.tsx            # Dashboard home
+│   │   ├── layout.tsx          # Root layout
+│   │   ├── globals.css         # Global styles
+│   │   ├── vendors/            # Vendor/workflow pages
+│   │   │   └── page.tsx        # Workflow list
+│   │   ├── workflow/           # Workflow detail pages
+│   │   │   └── [id]/
+│   │   │       └── page.tsx    # Workflow details
+│   │   └── approvals/          # Approval management
+│   │       └── page.tsx        # Approval queue
+│   ├── components/             # Reusable React components
+│   │   ├── Badge.tsx           # Status badge component
+│   │   ├── Card.tsx            # Card container component
+│   │   ├── EmptyState.tsx      # Empty state component
+│   │   ├── Loading.tsx         # Loading spinner component
+│   │   └── Navbar.tsx         # Navigation bar
+│   ├── services/               # API service layer
+│   │   ├── api.ts              # Axios configuration
+│   │   ├── vendorService.ts    # Vendor API calls
+│   │   ├── workflowService.ts  # Workflow API calls
+│   │   └── approvalService.ts  # Approval API calls
+│   ├── types/                  # TypeScript interfaces
+│   │   └── index.ts            # Type definitions
+│   ├── public/                 # Static assets
+│   ├── .env.local.example      # Environment variables template
+│   ├── next.config.ts          # Next.js configuration
+│   ├── tailwind.config.ts      # TailwindCSS configuration
+│   ├── tsconfig.json           # TypeScript configuration
+│   └── package.json
+├── ARCHITECTURE.md             # System architecture with diagrams
+├── EVALUATION_GUIDE.md         # Quick setup guide for evaluators
 ├── API_LAYER.md                # API documentation
 ├── CONNECTOR_LAYER.md          # Connector documentation
 ├── PERSISTENCE_LAYER.md        # Database documentation
